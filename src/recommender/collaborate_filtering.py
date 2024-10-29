@@ -1,8 +1,8 @@
 from pathlib import Path
 import joblib
 import pandas as pd
-from surprise import Dataset, Reader, SVD, accuracy
-from surprise.model_selection import train_test_split, GridSearchCV
+from surprise import Dataset, Reader, SVD
+from surprise.model_selection import GridSearchCV
 import logging
 
 def collaborate_filtering(df: pd.DataFrame):
