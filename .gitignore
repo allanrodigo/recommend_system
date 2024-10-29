@@ -9,3 +9,6 @@
 
 #dataset
 *.csv
+
+#models
+*.pkl
