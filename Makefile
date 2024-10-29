@@ -24,7 +24,7 @@ help:
 # Build the Docker image
 .PHONY: build
 build:
-	docker build -t $(IMAGE_NAME):latest -f $(DOCKERFILE) $(DOCKER_CONTEXT)
+	docker build -t $(IMAGE_NAME):latest $(DOCKER_CONTEXT)
 
 # Run the Docker container
 .PHONY: run

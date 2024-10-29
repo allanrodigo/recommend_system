@@ -1,5 +1,4 @@
 from pathlib import Path
-import sys
 import joblib
 import logging
 import pandas as pd
@@ -15,10 +14,10 @@ class HybridRecommender:
     @classmethod
     def load_models(cls):
         base_dir = Path(__file__).resolve().parent.parent.parent
-        collaborative_similarity_path = base_dir / 'models' / 'collaborate_recommendation_model.pkl'
-        knn_model_path = base_dir / 'models' / 'based_content_knn_model.pkl'
-        index_path = base_dir / 'models' / 'based_content_index.pkl'
-        feature_matrix_path = base_dir / 'models' / 'based_content_feature_matrix.pkl'
+        collaborative_similarity_path = base_dir / 'src' / 'models' / 'collaborate_recommendation_model.pkl'
+        knn_model_path = base_dir / 'src' / 'models' / 'based_content_knn_model.pkl'
+        index_path = base_dir / 'src' / 'models' / 'based_content_index.pkl'
+        feature_matrix_path = base_dir / 'src' / 'models' / 'based_content_feature_matrix.pkl'
 
         try:
             # Load the precomputed collaborative similarity matrix
@@ -108,18 +107,20 @@ class HybridRecommender:
         return hybrid_recommendations
 
     def save_model(self):
-        base_dir = Path(__file__).resolve().parent.parent.parent
+        base_dir = Path(__file__).resolve().parent.parent
         filepath = base_dir / 'models' / 'hybrid_recommender_model.pkl'
         joblib.dump(self, filepath)
         logging.info(f"HybridRecommender model saved to {filepath}.")
 
     @classmethod
     def load_model(cls):
-        filepath = Path("/models/hybrid_recommender_model.pkl")
+        filepath = Path("./src/models/hybrid_recommender_model.pkl")
+        logging.info(f"Procurando pelo modelo no caminho: {filepath}")
         try:
-            with open(filepath, "rb") as f:
-                return joblib.load(f)
-        except ModuleNotFoundError:
-            sys.path.append("/src")
-            with open(filepath, "rb") as f:
-                return joblib.load(f)
+            return joblib.load(filepath)
+        except FileNotFoundError:
+            logging.error(f"Model file not found at {filepath}")
+            raise
+        except Exception as e:
+            logging.error(f"Failed to load model: {e}")
+            raise

@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, jwt_required
 from flask_cors import CORS
-from recommender.hybrid_filtering import HybridRecommender
+from src.recommender.hybrid_filtering import HybridRecommender
 from config import API_KEY
 
 app = Flask(__name__)
@@ -34,4 +34,4 @@ def recommend():
     return jsonify({'product_id': product_id, 'recommendations': recommendations})
 
 if __name__ == '__main__':
-    app.run(host='192.168.0.100', port=8000, debug=False)
+    app.run(host='0.0.0.0', port=8000, debug=False)

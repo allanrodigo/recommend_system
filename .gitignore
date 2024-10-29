@@ -1,0 +1,11 @@
+#enviroments
+.env
+
+#logs
+*.log
+
+#compilation
+.pytest_cache/
+
+#dataset
+*.csv
