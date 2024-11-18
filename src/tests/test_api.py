@@ -13,8 +13,13 @@ def test_load_model():
     assert hybrid_recommender is not None, "O modelo deveria ser carregado com sucesso."
 
 def test_recommendations_endpoint(client):
+    jwt_token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
+    
     product_id = '1801805'
-    response = client.get(f"/recommend/{product_id}")
+    headers = {
+        "Authorization": f"token {jwt_token}"
+    }
+    response = client.get(f"/recommend/?product_id={product_id}", headers=headers)
 
     # Check that the request was successful (status code 200)
     assert response.status_code == 200
