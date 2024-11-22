@@ -109,8 +109,11 @@ class HybridRecommender:
     def save_model(self):
         base_dir = Path(__file__).resolve().parent.parent
         filepath = base_dir / 'models' / 'hybrid_recommender_model.pkl'
-        joblib.dump(self, filepath)
-        logging.info(f"HybridRecommender model saved to {filepath}.")
+        try:
+            joblib.dump(self, filepath)
+            logging.info(f"HybridRecommender model saved successfully at {filepath}.")
+        except Exception as e:
+            logging.error(f"Failed to save model: {e}")
 
     @classmethod
     def load_model(cls):
