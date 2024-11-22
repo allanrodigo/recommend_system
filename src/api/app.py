@@ -36,7 +36,7 @@ except Exception as e:
     raise
 
 @app.route('/recommend', methods=['GET'])
-#@jwt_required()
+@jwt_required()
 def recommend():
     """
     Endpoint para gerar recomendações.
