@@ -12,4 +12,4 @@ def setup_logging():
     )
 
 config = Configuration()
-API_KEY = config('API-KEY', default=None)
+API_KEY = config('API_KEY', default=None)
