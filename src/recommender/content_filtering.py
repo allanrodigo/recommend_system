@@ -1,8 +1,7 @@
 from pathlib import Path
-import pandas as pd
 import logging
 import joblib
-from sklearn.decomposition import TruncatedSVD
+import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
 # Configuração de diretórios
@@ -10,16 +9,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 MODELS_DIR = BASE_DIR / 'models'
 
 # Função para criar a matriz de características
-def create_based_content_feature_matrix(df_products, n_components=100):
+def create_based_content_feature_matrix(df_products):
     """
     Cria a matriz de características baseada em atributos de produtos.
 
     Args:
         df_products (pd.DataFrame): DataFrame contendo os dados dos produtos.
-        n_components (int): Número de componentes para redução de dimensionalidade.
 
     Returns:
-        np.ndarray: Matriz reduzida de características.
+        np.ndarray: Matriz de características.
         pd.Index: Índice dos produtos.
     """
     logging.info("Creating item feature matrix.")
@@ -29,6 +27,8 @@ def create_based_content_feature_matrix(df_products, n_components=100):
         raise ValueError("'product_id' column is required in the dataset.")
 
     df_products = df_products.set_index('product_id')
+    # Preencher valores ausentes na coluna price com a média
+    df_products['price'] = df_products['price'].fillna(df_products['price'].mean())
 
     # Seleção de colunas relevantes
     feature_columns = ['price']
@@ -36,106 +36,113 @@ def create_based_content_feature_matrix(df_products, n_components=100):
     feature_columns += [col for col in df_products.columns if col.startswith('category_')]
 
     # Preenchimento de valores nulos e construção da matriz de características
-    based_content_feature_matrix = df_products[feature_columns].fillna(0)
-    logging.info(f"Feature matrix shape before SVD: {based_content_feature_matrix.shape}")
+    based_content_feature_matrix = df_products[feature_columns].fillna(0).values
+    logging.info(f"Feature matrix shape: {based_content_feature_matrix.shape}")
 
-    # Aplicar TruncatedSVD para redução de dimensionalidade
-    logging.info(f"Applying dimensionality reduction with {n_components} components.")
-    svd = TruncatedSVD(n_components=n_components, random_state=42)
-    based_content_feature_matrix_reduced = svd.fit_transform(based_content_feature_matrix)
-    logging.info(f"Feature matrix shape after SVD: {based_content_feature_matrix_reduced.shape}")
+    return based_content_feature_matrix, df_products.index
 
-    # Salvar a matriz reduzida e o modelo SVD
-    save_model(based_content_feature_matrix_reduced, "based_content_feature_matrix.pkl")
-    save_model(svd, "based_content_svd_model.pkl")
-
-    logging.info("Feature matrix and SVD model saved successfully.")
-    return based_content_feature_matrix_reduced, df_products.index
-
-# Função para salvar modelos
-def save_model(obj, filename):
+# Função para salvar o modelo completo
+def save_model(knn_model, feature_matrix, index, filename="model.pkl"):
     """
-    Salva um objeto serializado no diretório de modelos.
+    Salva o modelo KNN, a matriz de características e o índice em um único arquivo.
 
     Args:
-        obj: Objeto a ser salvo.
-        filename (str): Nome do arquivo.
+        knn_model (NearestNeighbors): Modelo KNN treinado.
+        feature_matrix (np.ndarray): Matriz de características.
+        index (pd.Index): Índice dos produtos.
+        filename (str): Nome do arquivo para salvar o modelo.
     """
     filepath = MODELS_DIR / filename
-    joblib.dump(obj, filepath)
-    logging.info(f"Model saved to {filepath}.")
+    model = {
+        "knn_model": knn_model,
+        "feature_matrix": feature_matrix,
+        "index": index,
+    }
+    joblib.dump(model, filepath)
+    logging.info(f"Full model saved to {filepath}.")
 
-# Função para carregar modelos
-def load_model(filename):
+# Função para carregar o modelo completo
+def load_model(filename="model.pkl"):
     """
-    Carrega um modelo serializado do diretório de modelos.
+    Carrega o modelo KNN, a matriz de características e o índice de um único arquivo.
 
     Args:
-        filename (str): Nome do arquivo.
+        filename (str): Nome do arquivo que contém o modelo.
 
     Returns:
-        obj: Modelo carregado.
+        dict: Um dicionário contendo o modelo, a matriz de características e o índice.
     """
     filepath = MODELS_DIR / filename
     if not filepath.exists():
         raise FileNotFoundError(f"Model file {filename} not found in {MODELS_DIR}.")
-    return joblib.load(filepath)
+    model = joblib.load(filepath)
+    logging.info(f"Full model loaded from {filepath}.")
+    return model
 
-# Função para construir e salvar o modelo KNN
-def build_and_save_knn_model(based_content_feature_matrix, index, metric='cosine', algorithm='brute'):
+# Função para construir e salvar o modelo completo
+def build_and_save_model(df_products):
     """
-    Constrói e salva o modelo KNN.
+    Constrói e salva o modelo KNN, a matriz de características e o índice em um único arquivo.
 
     Args:
-        based_content_feature_matrix (np.ndarray): Matriz de características reduzida.
-        index (pd.Index): Índice dos produtos.
-        metric (str): Métrica de similaridade (default: 'cosine').
-        algorithm (str): Algoritmo para encontrar vizinhos (default: 'brute').
-
-    Returns:
-        NearestNeighbors: Modelo KNN treinado.
+        df_products (pd.DataFrame): DataFrame contendo os dados dos produtos.
     """
-    logging.info("Building NearestNeighbors model.")
-    knn_model = NearestNeighbors(metric=metric, algorithm=algorithm)
-    knn_model.fit(based_content_feature_matrix)
+    logging.info("Building full model.")
 
-    # Salvar modelo e índice
-    save_model(knn_model, "based_content_knn_model.pkl")
-    save_model(index, "based_content_index.pkl")
+    # Criar matriz de características
+    feature_matrix, index = create_based_content_feature_matrix(df_products)
+    if not df_products['product_id'].is_unique:
+        logging.warning("Duplicate product IDs found. Removing duplicates.")
+        df_products = df_products.drop_duplicates(subset=['product_id'])
+    index = df_products['product_id'].unique()
 
-    logging.info("KNN model and index saved successfully.")
-    return knn_model
+    # Construir o modelo KNN
+    knn_model = NearestNeighbors(metric="cosine", algorithm="brute")
+    knn_model.fit(feature_matrix)
+
+    # Salvar o modelo completo
+    save_model(knn_model, feature_matrix, index)
 
 # Função para gerar recomendações
-def generate_recommendations(product_id, top_n=10):
+def generate_recommendations(product_id: int, top_n=5, model_filename="model.pkl"):
     """
     Gera recomendações para um produto específico.
 
     Args:
         product_id (int or str): ID do produto para o qual as recomendações serão geradas.
         top_n (int): Número de recomendações (default: 10).
+        model_filename (str): Nome do arquivo que contém o modelo.
 
     Returns:
         list: IDs dos produtos recomendados.
     """
     logging.info(f"Generating recommendations for product_id: {product_id}.")
+    product_id = int(product_id)
 
     try:
-        # Carregar modelos
-        knn_model = load_model("based_content_knn_model.pkl")
-        index = load_model("based_content_index.pkl")
-        feature_matrix = load_model("based_content_feature_matrix.pkl")
+        model = load_model(model_filename)
+        knn_model = model["knn_model"]
+        feature_matrix = model["feature_matrix"]
+        index = model["index"]
+        logging.info(f"Index type: {type(index)}")
+        logging.info(f"First 5 values in index: {list(index[:5])}")
+        logging.info(f"Product ID being searched: {product_id}")
+        logging.info(f"Index dtype: {index.dtype}")
+        logging.info(f"Product ID type: {type(product_id)}")
         logging.info(f"Feature matrix shape: {feature_matrix.shape}")
+        logging.info(f"KNN model expects {knn_model.n_features_in_} features")
 
-        # Validar se o produto está no índice
         if product_id not in index:
             raise ValueError(f"Product ID {product_id} not found in index.")
 
-        item_idx = index.get_loc(product_id)
+        item_idx_array = np.where(index == product_id)[0]
+        if len(item_idx_array) != 1:
+            logging.error("item_idx is not a single integer value. Debugging required.")
+            raise ValueError(f"Invalid item_idx: {item_idx_array}")
+        item_idx = item_idx_array[0]
         logging.info(f"Item index in feature matrix: {item_idx}")
-        
-        feature_vector = feature_matrix[item_idx]
-        logging.info(f"Input vector shape after SVD: {feature_vector.shape}")
+        feature_vector = feature_matrix[item_idx].reshape(1, -1)
+        logging.info(f"Feature vector shape: {feature_vector.shape}")
 
         # Buscar vizinhos mais próximos
         _, indices = knn_model.kneighbors(
@@ -147,25 +154,8 @@ def generate_recommendations(product_id, top_n=10):
         recommended_indices = indices.flatten()[1:top_n + 1]
         recommendations = index[recommended_indices].tolist()
         logging.info(f"Recommendations for product {product_id}: {recommendations}")
-        
+
         return recommendations
     except Exception as e:
         logging.error(f"Error generating recommendations: {e}")
         raise
-
-# Função principal para treinamento e geração de recomendações
-def content_filtering(df: pd.DataFrame):
-    """
-    Realiza todo o processo de treinamento e geração de recomendações.
-
-    Args:
-        df (pd.DataFrame): DataFrame contendo os dados dos produtos.
-    """
-    # Criar matriz de características
-    based_content_feature_matrix, index = create_based_content_feature_matrix(df)
-
-    # Construir e salvar o modelo KNN
-    knn_model = build_and_save_knn_model(based_content_feature_matrix, index)
-
-    # Imprimir métricas do modelo
-    logging.info(f"Number of samples in the model: {knn_model.n_samples_fit_}")

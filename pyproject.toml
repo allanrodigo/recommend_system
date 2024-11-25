@@ -20,6 +20,7 @@ flask-jwt-extended = "^4.6.0"
 flask-cors = "^5.0.0"
 prettyconf = "^2.2.1"
 tqdm = "^4.67.0"
+plotly = "^5.24.1"
 
 
 [tool.poetry.group.dev.dependencies]
