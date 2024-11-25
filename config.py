@@ -1,5 +1,4 @@
 import logging
-from prettyconf import Configuration
 
 def setup_logging():
     logging.basicConfig(
@@ -10,6 +9,3 @@ def setup_logging():
             logging.StreamHandler()
         ]
     )
-
-config = Configuration()
-API_KEY = config('API_KEY', default=None)

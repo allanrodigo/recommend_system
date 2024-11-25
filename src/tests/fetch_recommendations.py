@@ -8,7 +8,7 @@ from tqdm import tqdm
 API_URL = "http://127.0.0.1:8000/recommend"
 INPUT_CSV = "C:\\Users\\allan\\Documents\\recommendation_system\\data\\raw\\dataset-sales-minor-pro.csv"
 OUTPUT_FILE = "recommendations_10k.json"
-TOP_N = 5  # Número de recomendações por produto
+TOP_N = 15  # Número de recomendações por produto
 
 def fetch_recommendations(product_ids, top_n=TOP_N):
     """
@@ -48,7 +48,7 @@ def main():
         if "product_id" not in df.columns:
             raise ValueError("O arquivo CSV deve conter uma coluna chamada 'product_id'.")
         
-        product_ids = df["product_id"].drop_duplicates().tolist()[:1000]
+        product_ids = df["product_id"].drop_duplicates().tolist()[:10]
         logging.info(f"Carregados {len(product_ids)} product_ids do arquivo {INPUT_CSV}.")
     except Exception as e:
         logging.error(f"Erro ao carregar o arquivo CSV: {e}")

@@ -25,15 +25,15 @@ def create_based_content_feature_matrix(df_products):
     # Verificar se 'product_id' está presente
     if 'product_id' not in df_products.columns:
         raise ValueError("'product_id' column is required in the dataset.")
+    
+    df_products = df_products.drop_duplicates(subset='product_id')
 
     df_products = df_products.set_index('product_id')
     # Preencher valores ausentes na coluna price com a média
-    df_products['price'] = df_products['price'].fillna(df_products['price'].mean())
+    df_products['n_price'] = df_products['n_price'].fillna(df_products['n_price'].mean())
 
     # Seleção de colunas relevantes
-    feature_columns = ['price']
-    feature_columns += [col for col in df_products.columns if col.startswith('brand_')]
-    feature_columns += [col for col in df_products.columns if col.startswith('category_')]
+    feature_columns = ['n_price'] + [col for col in df_products.columns if col.startswith(('brand_', 'category_'))]
 
     # Preenchimento de valores nulos e construção da matriz de características
     based_content_feature_matrix = df_products[feature_columns].fillna(0).values
@@ -91,10 +91,7 @@ def build_and_save_model(df_products):
 
     # Criar matriz de características
     feature_matrix, index = create_based_content_feature_matrix(df_products)
-    if not df_products['product_id'].is_unique:
-        logging.warning("Duplicate product IDs found. Removing duplicates.")
-        df_products = df_products.drop_duplicates(subset=['product_id'])
-    index = df_products['product_id'].unique()
+    logging.info(f"Index shape: {len(index)}")
 
     # Construir o modelo KNN
     knn_model = NearestNeighbors(metric="cosine", algorithm="brute")
@@ -102,9 +99,10 @@ def build_and_save_model(df_products):
 
     # Salvar o modelo completo
     save_model(knn_model, feature_matrix, index)
+    logging.info(f"Model saved.")
 
 # Função para gerar recomendações
-def generate_recommendations(product_id: int, top_n=5, model_filename="model.pkl"):
+def generate_recommendations(product_id: int, top_n=20, model=None):
     """
     Gera recomendações para um produto específico.
 
@@ -118,41 +116,39 @@ def generate_recommendations(product_id: int, top_n=5, model_filename="model.pkl
     """
     logging.info(f"Generating recommendations for product_id: {product_id}.")
     product_id = int(product_id)
+    
+    if model is None:
+        model = load_model()
 
     try:
-        model = load_model(model_filename)
         knn_model = model["knn_model"]
         feature_matrix = model["feature_matrix"]
         index = model["index"]
-        logging.info(f"Index type: {type(index)}")
-        logging.info(f"First 5 values in index: {list(index[:5])}")
-        logging.info(f"Product ID being searched: {product_id}")
-        logging.info(f"Index dtype: {index.dtype}")
-        logging.info(f"Product ID type: {type(product_id)}")
+
         logging.info(f"Feature matrix shape: {feature_matrix.shape}")
-        logging.info(f"KNN model expects {knn_model.n_features_in_} features")
+        logging.info(f"Index shape: {len(index)}")
 
+        # Verificar se o produto está no índice
         if product_id not in index:
-            raise ValueError(f"Product ID {product_id} not found in index.")
+            logging.warning(f"Product ID {product_id} not found in index.")
+            return None
 
-        item_idx_array = np.where(index == product_id)[0]
-        if len(item_idx_array) != 1:
-            logging.error("item_idx is not a single integer value. Debugging required.")
-            raise ValueError(f"Invalid item_idx: {item_idx_array}")
-        item_idx = item_idx_array[0]
+        # Obter o índice do produto na matriz de características
+        item_idx = np.where(index == product_id)[0][0]
         logging.info(f"Item index in feature matrix: {item_idx}")
+
+        # Verificar o vetor de características
         feature_vector = feature_matrix[item_idx].reshape(1, -1)
         logging.info(f"Feature vector shape: {feature_vector.shape}")
 
         # Buscar vizinhos mais próximos
-        _, indices = knn_model.kneighbors(
-            feature_vector,
-            n_neighbors=top_n + 1
-        )
+        distances, indices = knn_model.kneighbors(feature_vector, n_neighbors=top_n + 1)
+        logging.info(f"Distances from KNN: {distances}")
+        logging.info(f"Raw indices from KNN: {indices}")
 
-        # Excluir o próprio produto dos resultados
+        # Mapear os índices para IDs de produtos
         recommended_indices = indices.flatten()[1:top_n + 1]
-        recommendations = index[recommended_indices].tolist()
+        recommendations = [index[i] for i in recommended_indices if i < len(index)]
         logging.info(f"Recommendations for product {product_id}: {recommendations}")
 
         return recommendations

@@ -19,9 +19,6 @@ def main():
     # Criar DataFrame
     logging.info("Create dataframe from processed data")
     df = pd.read_csv(input_path, low_memory=False)
-    df["price"] = pd.to_numeric(df["price"], errors="coerce")
-    columns_to_replace = [col for col in df.columns if col.startswith(("event_type", "brand", "category"))]
-    df[columns_to_replace] = df[columns_to_replace].replace({"False": 0, "True": 1})
     logging.info("DataFrame created successfully")
 
     # Construir e salvar o modelo completo
