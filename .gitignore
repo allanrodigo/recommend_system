@@ -5,7 +5,9 @@
 *.log
 
 #compilation
-.pytest_cache/
+*.pytest_cache/
+*.pyc
+__pycache__/
 
 #dataset
 *.csv
