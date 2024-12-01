@@ -29,7 +29,7 @@ build:
 # Run the Docker container
 .PHONY: run
 run:
-	docker run -d -p $(PORT):$(PORT) --name $(CONTAINER_NAME) $(IMAGE_NAME):latest
+	docker run -d -p $(PORT):$(PORT) --name $(CONTAINER_NAME) --env-file .env $(IMAGE_NAME):latest
 
 # Stop the running container
 .PHONY: stop

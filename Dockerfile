@@ -1,39 +1,54 @@
-# Use the official Python image from Docker Hub
-FROM python:3.12-slim
+# Etapa 1: Construção do ambiente com as dependências
+FROM python:3.12-slim AS builder
 
-ENV PYTHONPATH="/src"
+# Definir variáveis de ambiente
+ENV PYTHONUNBUFFERED=1 \
+    POETRY_VIRTUALENVS_CREATE=false \
+    POETRY_NO_INTERACTION=1 \
+    PATH="$PATH:/root/.local/bin"
 
-# Install build dependencies
-RUN apt-get update \
-    && apt-get install -y curl build-essential libpq-dev
+# Instalar dependências do sistema necessárias para construir dependências Python
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Poetry
-ENV POETRY_VERSION=1.6.1
+# Instalar o Poetry
 RUN curl -sSL https://install.python-poetry.org | python3 -
-ENV PATH="$PATH:/root/.local/bin"
 
-# Set the working directory
-WORKDIR /src
+# Definir diretório de trabalho
+WORKDIR /app
 
-# Copy only the Poetry files first
+# Copiar apenas os arquivos de dependências
 COPY pyproject.toml poetry.lock ./
 
-# Configure Poetry to not create virtual environments
-RUN poetry config virtualenvs.create false
+# Instalar as dependências (sem dependências de desenvolvimento)
+RUN poetry install --no-dev
 
-# Install dependencies (including dev dependencies if needed)
-RUN poetry install --no-interaction --no-ansi
+# Etapa 2: Construir a imagem final
+FROM python:3.12-slim
 
-# Copy the rest of your application code
+# Definir variáveis de ambiente
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONPATH="/app"
+
+# Instalar dependências de runtime necessárias
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Definir diretório de trabalho
+WORKDIR /app
+
+# Copiar as dependências instaladas da etapa de build
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copiar o código da aplicação
 COPY . .
 
-# Copy .env file
-COPY .env .
-
-# Copy config file
-COPY config.py .
-
-# Expose the port your Flask app runs on (default is 5000)
+# Expor a porta
 EXPOSE 8000
 
 # Set environment variables (if any)
