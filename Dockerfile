@@ -31,7 +31,8 @@ FROM python:3.12-slim
 
 # Definir variáveis de ambiente
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONPATH="/app"
+    PYTHONPATH="/app/src" \
+    PATH="$PATH:/root/.local/bin"
 
 # Instalar dependências de runtime necessárias
 RUN apt-get update && apt-get install -y --no-install-recommends \
