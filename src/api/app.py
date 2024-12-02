@@ -1,10 +1,14 @@
 import sys
+from os import getcwd
 from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, jwt_required
 from flask_cors import CORS
 from pathlib import Path
 from decouple import config
 import logging
+
+print("PYTHONPATH:", sys.path)
+print("Current Directory:", getcwd())
 
 # Adicionar o diretório raiz ao caminho
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
@@ -25,7 +29,7 @@ app.config['JWT_SECRET_KEY'] = config("JWT_SECRET_KEY")
 jwt = JWTManager(app)
 
 @app.route('/recommend', methods=['GET'])
-@jwt_required()
+#@jwt_required()
 def recommend():
     """
     Endpoint para gerar recomendações.
@@ -36,16 +40,12 @@ def recommend():
         if not product_id:
             return jsonify({'error': 'O parâmetro product_id é obrigatório.'}), 400
 
-        recommendations = generate_recommendations(product_id, top_n=top_n, model=model)
+        response = generate_recommendations(product_id, top_n=top_n, model=model)
 
-        if not recommendations:
-            return jsonify({'product_id': product_id, 'recommendations': []})
-        recommendations = [int(rec) for rec in recommendations]
+        if not response:
+            return jsonify({'recommendations': []})
 
-        return jsonify({
-            'product_id': product_id,
-            'recommendations': recommendations
-        })
+        return jsonify(response)
 
     except ValueError as e:
         logging.warning(f"Erro de validação: {e}")
@@ -56,4 +56,5 @@ def recommend():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000, debug=False)
+    app.run(host='0.0.0.0', port=8000)
+    

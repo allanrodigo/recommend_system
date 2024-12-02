@@ -1,6 +1,7 @@
 from pathlib import Path
 import logging
 import joblib
+from pandas import read_csv
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
@@ -102,7 +103,7 @@ def build_and_save_model(df_products):
     logging.info(f"Model saved.")
 
 # Função para gerar recomendações
-def generate_recommendations(product_id: int, top_n=20, model=None):
+def generate_recommendations(product_id: int, top_n=20, model=None, dataset_file="dataset-sales-minor-pro.csv"):
     """
     Gera recomendações para um produto específico.
 
@@ -150,8 +151,24 @@ def generate_recommendations(product_id: int, top_n=20, model=None):
         recommended_indices = indices.flatten()[1:top_n + 1]
         recommendations = [index[i] for i in recommended_indices if i < len(index)]
         logging.info(f"Recommendations for product {product_id}: {recommendations}")
+        
+        base_dir = Path(__file__).resolve().parent.parent.parent
+        dataset_path = base_dir / 'data' / 'raw' / dataset_file
+        df = read_csv(dataset_path, low_memory=False)
 
-        return recommendations
+        # Filtrar informações detalhadas dos produtos recomendados
+        recommended_products = df[df['product_id'].isin(recommendations)][
+            ['product_id', 'title', 'description', 'category_id', 'category_code', 'brand', 'price']
+        ]
+
+        detailed_recommendations = recommended_products.to_dict(orient='records')
+
+        logging.info(f"Recommendations for product {product_id}: {detailed_recommendations}")
+
+        return {
+            'product_id': product_id,
+            'recommendations': detailed_recommendations
+        }
     except Exception as e:
         logging.error(f"Error generating recommendations: {e}")
         raise
